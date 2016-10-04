@@ -39,7 +39,7 @@ quality = 100
 fileExt = '.jpg'
 
 #inputDir = '/Volumes/Ent_One_1TB/DTLA_DATA/8_MONA/2015/'
-inputDir = '/Users/pyDev/Documents/JPG_REFINERY/Frame_Replacer_Test_Data'
+inputDir = '/Users/pyDev/Documents/JPG_frameReplacer/TEST_DATA'
 
 black = (0,0,0)
 fillColour = black
@@ -162,7 +162,7 @@ print "		"
 
 
 i = 0
-while i < (tJ):
+while i < (tJ-1):
 
 	#print namePaths[i]
 	#print namePaths[i+1]

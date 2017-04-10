@@ -13,22 +13,12 @@
 
 
 """
-
-
-from __future__ import generators
-import glob
 from PIL import Image
-from PIL import ImageStat
-from PIL import ImageChops
-from PIL.ExifTags import TAGS, GPSTAGS
-import string, sys, traceback, datetime, time, calendar
-import EXIF, os, shutil
+import calendar
+import os, shutil
 import dirwalk
-from PIL import *
-from numpy import *
 from datetime import datetime, date, time, timedelta
 import time
-
 
 
 #_______________________________________________________________________________________________________
@@ -39,7 +29,7 @@ quality = 100
 fileExt = '.jpg'
 
 #inputDir = '/Volumes/Ent_One_1TB/DTLA_DATA/8_MONA/2015/'
-inputDir = '/Users/pyDev/Documents/JPG_frameReplacer/TEST_DATA'
+inputDir = '/Volumes/DTLA_1_NavarreRiver_2_LakeStClair_3_LakeKingWilliam/STCLAIR_1920_copy'
 
 black = (0,0,0)
 fillColour = black
@@ -47,12 +37,10 @@ fillColour = black
 namePaths = []
 namePaths2 = []
 
+slotList = []
+shotList = []
 # this is the # of seconds between each DTLA DSLR capture. 
 interval = 300.00
-
-
-
-
 
 #_______________________________________________________________________________________________________
 
@@ -61,7 +49,8 @@ for root, dirs, files in os.walk(inputDir):
 		if name.endswith(fileExt):
 			namePaths.append(os.path.join(root,name))
 
-totalJPEGS = len(namePaths)
+totalJPEGS = tJ = len(namePaths)
+
 print "		"
 
 
@@ -69,7 +58,7 @@ print "		"
 
 
 def Filename_epochsecs(filename):
-
+	#determines epoch seconds for entire datetime of filename
 	Year = int(filename[-23:-19])
 	Month= int(filename[-18:-16])
 	Day = int(filename[-15:-13])
@@ -85,7 +74,7 @@ def Filename_epochsecs(filename):
 
 
 def Epochsecs_filename(epochsecs):
-
+	#returns datetime based on epoch seconds
 	newYMDhms 	= time.gmtime(epochsecs)
 
 	newyear		= str(newYMDhms[0])
@@ -100,31 +89,26 @@ def Epochsecs_filename(epochsecs):
 	return newfilename
 
 
-def Gap_filler(interval, gapStart, gapEnd, location, ScreenWidth, ScreenHeight, fillColour, inputDir):
+class SHOT:
 
-		print "gapStart   ", gapStart, "   ", Epochsecs_filename(gapStart)
-		print "gapEnd     ", gapEnd, "   ", Epochsecs_filename(gapEnd)
+	def __init__(self, namePath):
 
-		gapSize = gapEnd - gapStart
-		print "gapSize   ", gapSize
-		fillNumber = gapSize/interval
-		print "fillNumber   ", fillNumber
-		fNum = int(math.floor(fillNumber)) - 1
-		print "fNum   ", fNum
+		self.namePath = namePath
+		self.sampleTime = Filename_epochsecs(namePath)
 
-		x = 1
-		while x <= (fNum):
+		return
+	
+class SLOT:
 
-			img = Image.new('RGB', (ScreenWidth, ScreenHeight), fillColour)
-			fillTime = gapStart +  (x * interval)
-			print "fillTime   ", fillTime
-			newName = Epochsecs_filename(fillTime)
-			print "newName   ", newName
+	def __init__(self, epochsecs, interval):
 
-			outpathName = inputDir  + '/' + location + newName
-			img.save(outpathName, 'jpeg', quality=quality)
+		self.midSlot   = epochsecs
+		self.startSlot = self.midSlot - (interval/2)
+		self.endSlot   = self.midSlot + (interval/2)
+		self.hasShot   = 0
+		self.SHOT      = SHOT
 
-			x+=1
+		return
 
 
 
@@ -133,24 +117,29 @@ def Gap_filler(interval, gapStart, gapEnd, location, ScreenWidth, ScreenHeight, 
 location  = namePaths[0][-31:-23]
 
 startSecs = Filename_epochsecs(namePaths[0])
-endSecs   = Filename_epochsecs(namePaths[-1])
 startTime = Epochsecs_filename(startSecs)
+
+endSecs   = Filename_epochsecs(namePaths[-1])
 endTime	  = Epochsecs_filename(endSecs)
 
 duration  = (endSecs - startSecs)
 
-tJ  = totalJPEGS
-mSP = maxSamplesPossible  = int(duration / interval) + 1
-tSM = totalSamplesMissing = int(maxSamplesPossible - tJ)
+
+totalSlots = tS  = (duration / interval)
+emptySlots = eS  =  (tS - tJ)
+
+
+
 
 print "*_________________________________________________________________________________*"
+print "		", location
+print "start time  = " , startTime , " which is  ", startSecs, " since the epoch began"
+print "end time    = " , endTime , " which is  ", endSecs, " since the epoch began "
 print "		"
-print "start time  = " , startSecs, " which was  ", startTime
-print "end time    = " , endSecs, " which was  ", endTime
-print "duration    = " , duration , " epoch seconds" , " = " , float(duration/86400) , " days. "
-print "total number of potential samples        = ", maxSamplesPossible
-print "total number of jpegs found              = ", tJ
-print "total number of samples to be re-created = ", totalSamplesMissing
+print "duration    = " , duration , " epoch seconds" , "        = " , (float(duration)/86400.00) , " days. "
+print "total number of slots between start and end    = ", tS
+print "total number of jpegs found                    = ", tJ
+print "total number of empty slots to be filled       = ", eS
 print "		"
 print "		"
 
@@ -159,43 +148,49 @@ print "		"
 #________________________________________________________________________________________________________
 
 
-
+t1  = float(Filename_epochsecs(namePaths[0]))
 
 i = 0
-while i < (tJ-1):
-
-	#print namePaths[i]
-	#print namePaths[i+1]
-	
-	t1  = Filename_epochsecs(namePaths[i])
-	#print t1
-	t2  = Filename_epochsecs(namePaths[i+1])
-	#print t2
-	gap = int(t2 - t1)
-
-	#print "gap found   ", gap
-	#print "________________________"
-	#print "   "
-
-	if gap >= (interval * 2):
-		Gap_filler(interval, t1, t2, location, ScreenWidth, ScreenHeight, fillColour, inputDir)
-
-
-
-
-
-		print "		"
-
-
-
-	
-
+while i <= tS:
+	slot = SLOT(t1, interval) 
+	slotList.append(slot)
+	t1+=interval
 
 	i+=1
 
 
+for name in namePaths:
+	shot = SHOT(name) 
+	shotList.append(shot)
 
 
+for SHOT in shotList:
+	xx = SHOT.sampleTime
+	print xx
+
+	for SLOT in slotList:
+		if SLOT.startSlot < xx and xx < SLOT.endSlot:
+			SLOT.hasShot = 1
+			SLOT.SHOT = SHOT.namePath
+
+
+for SLOT in slotList:
+
+	print SLOT.hasShot, "  ", SLOT.SHOT, "  ", SLOT.startSlot, "  ", SLOT.midSlot, "  ", SLOT.endSlot
+
+
+a = 0
+for SLOT in slotList:
+
+	if SLOT.hasShot == 0:
+
+		img = Image.new('RGB', (ScreenWidth, ScreenHeight), fillColour)
+		newName = Epochsecs_filename(SLOT.midSlot)
+		print a,"  newName   ", newName
+
+		outpathName = inputDir  + '/' + location + newName
+		img.save(outpathName, 'jpeg', quality=quality)
+		a+=1
 
 
 
